@@ -105,7 +105,6 @@ public class Scanner {
 			t.val += ch;
 			nextCh();
 		}
-		System.out.println(t.val);
 		try {
 			t.numVal = Integer.parseInt(t.val);
 		} catch (NumberFormatException e) {
@@ -152,7 +151,7 @@ public class Scanner {
 				readName(t); 
 				break;
 			//numbers
-			case '0':
+			case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
 				readNumber(t);
 				break;
 			//simple tokens

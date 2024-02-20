@@ -100,14 +100,15 @@ public class Parser {
 			} else if (sym == ident) { VarDecl();
 			} else break;
 		}
+
 		check(lbrace);
 		while (sym == void_ || sym == ident) {
-			MethodDecl();
+			MethodDecl();	
 		}
 		check(rbrace);
+		
 	}
 
-	//TODO  // add parsing methods for all production
 	//ConstDecl = "final" Type ident "=" (number | charConst) ";"
 	static private void ConstDecl(){
 		
@@ -119,7 +120,7 @@ public class Parser {
 			scan();
 		} else if (sym == charCon) {
 			scan();			
-		} else System.out.println(sym); error("number or char constant expected");
+		} else error("number or char constant expected");
 		check(semicolon);
 	}
 
@@ -306,7 +307,7 @@ public class Parser {
 				break;
 			
 			default:
-				error("[long list here] expected");
+				error("[long list here] 1 expected");
 				break;
 		}
 	}
@@ -314,10 +315,11 @@ public class Parser {
 	//Block = "{" {Statement} "}".
 	static private void Block(){
 		check(lbrace);
+		System.out.println("block");
 		if (sym == ident | sym == if_ | sym == while_ | sym == return_ | sym == read_ |  
 		sym == print_ | sym == lbrace | sym == lbrace | sym == semicolon) {
 			Statement();
-		} else error("[long list here] expected");
+		} else error("[long list here] 2 expected");
 		check(rbrace);
 	}
 	//ClassDecl = "class" ident "{" {VarDecl} "}".	
@@ -325,8 +327,11 @@ public class Parser {
 		check(class_);
 		check(ident);
 		check(lbrace);
+	
 		VarDecl();
+
 		check(rbrace);
+		
 	}
 	//VarDecl = Type ident {"," ident } ";".
 	static private void VarDecl(){
@@ -341,6 +346,7 @@ public class Parser {
 			check(ident);
 		}
 		check(semicolon);
+		scan();
 	}
 	//MethodDecl = (Type | "void") ident "(" [FormPars] ")" {VarDecl} Block.
 	static private void MethodDecl(){
