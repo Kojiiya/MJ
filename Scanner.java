@@ -86,7 +86,7 @@ public class Scanner {
 	
 	private static void readName(Token t){
 		t.val = "";
-		t.val+=ch;
+
 
 		while (isAlphanumerical(ch)){
 				t.val+=ch;
@@ -116,23 +116,53 @@ public class Scanner {
 	}
 
 	private static void readNumber(Token t){
-		t.val = "";
-
+		t.val = ""; 
 		boolean flag = true;
-		while (flag){
-			if (ch >= 0 && ch <= 9){
+		while (flag) {
+			if (ch >= '0' && ch <= '9') {
 				t.val += ch;
+				nextCh(); 
 			} else {
 				flag = false;
 			}
 		}
 		try {
 			t.numVal = Integer.parseInt(t.val);
-		} catch (Exception e){
+			t.kind = number; 
+		} catch (NumberFormatException e) {
+			System.out.println("Error: Invalid number format");
 			ch = eofCh;
 		}
-		//t.numVal += (int)(ch);
 	}
+
+	private static void readCharCon(Token t) {
+		nextCh();
+		if (ch == '\'') {
+			System.out.println("Empty Char Con");
+			t.kind = charCon;
+			t.numVal = -1;
+			nextCh();
+		} else {
+			t.val = "" + ch;
+			nextCh();
+			if (ch == '\'') {
+				t.kind = charCon;
+				t.numVal = (int) ch;
+				nextCh();
+			} else {
+				System.out.println("Invalid Char Con");
+				t.kind = charCon;
+				t.numVal = -1;
+				while (ch != '\'' && ch != eofCh) {
+					nextCh();
+				}
+				if (ch == '\'') {
+					nextCh();
+				}
+			}
+		}
+	}
+	
 	//---------- Return next input token
 	public static Token next() {
 		 // add your code here
@@ -140,14 +170,14 @@ public class Scanner {
 		 Token t = new Token(); t.line=line; t.col=col;
 		 switch (ch) {
 			//names, keywords
-			case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-				 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 
-				 'm', 'n', 'o', 'q', 'r', 's', 't', 'u', 'w', 'x', 'y', 'z',
-				 'M', 'N', 'O', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z':
+			case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': 
+			case 'n': case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u': case 'v': case 'w': case 'x': case 'y': case 'z': 
+			case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': 
+			case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': case 'W': case 'X': case 'Y': case 'Z': 
 				readName(t); 
 				break;
 			//numbers
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			case '0':
 				readNumber(t);
 				break;
 			//simple tokens
@@ -195,6 +225,11 @@ public class Scanner {
 				break;
 			default:
 				nextCh(); t.kind=none;
+				break;
+			
+			//backslash
+			case '\'':
+				readCharCon(t);
 				break;
 		 }
 		 return t;
