@@ -3,7 +3,6 @@
 */
 package MJ;
 import java.io.*;
-
 public class Scanner {
 	private static final char eofCh = '\u0080';
 	private static final char eol = '\n';
@@ -93,74 +92,50 @@ public class Scanner {
 				nextCh();
 		}
 
-		String keyword=""; 
-		for (String s : key){
-			if (t.val == s){
-				keyword = s;
-			}
+
+		for (int i = 0; i < key.length; i++){
+			if (t.val.equals(key[i])) { t.kind = keyVal[i];  return;}			}
+			t.kind = ident;
+				
 		}
-		switch (keyword){
-			case "class": t.kind = class_; break;
-			case "else": t.kind = else_; break;
-			case "final": t.kind = final_; break;
-			case "if": t.kind = if_; break;
-			case "new": t.kind = new_; break;
-			case "print": t.kind = print_; break;
-			case "program": t.kind = program_;
-			case "read": t.kind = read_;
-			case "return": t.kind = return_;
-			case "void": t.kind = void_;
-			case "while": t.kind = while_;
-			default: t.kind = ident; break;
-		}
-	}
 
 	private static void readNumber(Token t){
-		t.val = ""; 
-		boolean flag = true;
-		while (flag) {
-			if (ch >= '0' && ch <= '9') {
-				t.val += ch;
-				nextCh(); 
-			} else {
-				flag = false;
-			}
+		t.val = "";
+		while (Character.isDigit(ch)) {
+			t.val += ch;
+			nextCh();
 		}
+		System.out.println(t.val);
 		try {
 			t.numVal = Integer.parseInt(t.val);
-			t.kind = number; 
 		} catch (NumberFormatException e) {
-			System.out.println("Error: Invalid number format");
-			ch = eofCh;
+			System.out.println("number too big");
+			t.numVal = 0;
 		}
+		t.kind = number;
+
 	}
 
 	private static void readCharCon(Token t) {
-		nextCh();
-		if (ch == '\'') {
-			System.out.println("Empty Char Con");
-			t.kind = charCon;
-			t.numVal = -1;
+		t.val = "";
+		t.kind = charCon;
+		t.numVal = 0;
+		while (ch != '\'' && ch != '\n' && ch != eofCh) {
+			t.val += ch;
 			nextCh();
-		} else {
-			t.val = "" + ch;
-			nextCh();
-			if (ch == '\'') {
-				t.kind = charCon;
-				t.numVal = (int) ch;
-				nextCh();
-			} else {
-				System.out.println("Invalid Char Con");
-				t.kind = charCon;
-				t.numVal = -1;
-				while (ch != '\'' && ch != eofCh) {
-					nextCh();
-				}
-				if (ch == '\'') {
-					nextCh();
-				}
-			}
 		}
+		if (ch == '\'' || ch == eofCh) {
+			System.out.println("missing end quote");
+		} else if (t.val.length() == 1) {
+			t.numVal = t.val.charAt(0);
+		} else if (t.val.length() == 2 && t.val.charAt(0) == '\\') {
+			if (t.val.charAt(1) == 'r') t.numVal = '\r';
+			else if (t.val.charAt(1) == 'n') t.numVal = '\n';
+			else if (t.val.charAt(1) == 't') t.numVal = '\t';
+			else System.out.println("invalid escape sequence");
+		} else System.out.println("invalid char constant");
+
+		
 	}
 	
 	//---------- Return next input token
@@ -229,6 +204,7 @@ public class Scanner {
 			
 			//backslash
 			case '\'':
+				nextCh();
 				readCharCon(t);
 				break;
 		 }
