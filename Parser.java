@@ -5,8 +5,7 @@ package MJ;
 
 import java.text.Normalizer.Form;
 import java.util.*;
-//import MJ.SymTab.*;
-//import MJ.CodeGen.*;
+
 
 import MJ.SymTab.Obj;
 import MJ.SymTab.Struct;
@@ -194,6 +193,7 @@ public class Parser {
 		} else if (sym == new_) { 
 			scan();
 			check(ident);
+			Obj obj = Tab.find(t.val);
 			if (sym == lbrack){
 				scan();
 				Expr();
@@ -237,10 +237,12 @@ public class Parser {
 	//Designator = ident {"." ident | "[" Expr "]"}.
 	static private void Designator(){
 		check(ident);
+		Obj obj = Tab.find(t.val);
 		while (true){
 			if (sym == period){
 				scan();
 				check(ident);
+				obj = Tab.find(t.val);
 			} else if (sym == lbrack){
 				scan();
 				Expr();
