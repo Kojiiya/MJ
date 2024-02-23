@@ -123,7 +123,8 @@ public class Scanner {
 			t.val += ch;
 			nextCh();
 		}
-		if (ch == '\'' || ch == eofCh) {
+		if (ch == '\''){ nextCh(); }
+		if (ch == '\n' || ch == eofCh) {
 			System.out.println("missing end quote");
 		} else if (t.val.length() == 1) {
 			t.numVal = t.val.charAt(0);
@@ -132,9 +133,7 @@ public class Scanner {
 			else if (t.val.charAt(1) == 'n') t.numVal = '\n';
 			else if (t.val.charAt(1) == 't') t.numVal = '\t';
 			else System.out.println("invalid escape sequence");
-		} else System.out.println("invalid char constant");
-
-		
+		} else System.out.println("invalid char constant");	
 	}
 	
 	//---------- Return next input token
@@ -175,21 +174,21 @@ public class Scanner {
 
 			case eofCh: t.kind = eof; break; //no nextCh()
 			//compound tokens
+
 			case '=': 
-				nextCh(); 
-				if (ch =='='){nextCh(); t.kind=eql;} else t.kind = assign;
-				break;
+				nextCh();	
+				if (ch =='='){nextCh(); t.kind=eql;} else t.kind = assign; break;
 			case '!':
 				nextCh();
-				if (ch=='='){nextCh(); t.kind=neq;}
+				if (ch=='='){nextCh(); t.kind=neq;} break;
 			case '<':
-				nextCh();
-				if (ch=='='){nextCh(); t.kind=leq;} else t.kind = lss;
+				nextCh();	
+				if (ch=='='){nextCh(); t.kind=leq;} else t.kind = lss; break;
 			case '>':
 				nextCh();
-				if (ch=='='){nextCh(); t.kind=geq;} else t.kind = gtr;
-				
+				if (ch=='='){nextCh(); t.kind=geq;} else t.kind = gtr; break;
 			//comments && slash
+			//TODO //Think the issue line 15 col 12 is here
 			case '/':
 				nextCh();
 				if (ch == '/') {
@@ -197,15 +196,18 @@ public class Scanner {
 					t = next(); // call scanner recursively
 					} else t.kind = slash;
 				break;
-			default:
-				nextCh(); t.kind=none;
-				break;
 			
 			//backslash
 			case '\'':
 				nextCh();
 				readCharCon(t);
 				break;
+
+			default:
+				nextCh(); t.kind=none;
+				break;
+			
+			
 		 }
 		 return t;
 	}

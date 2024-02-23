@@ -8,6 +8,10 @@ import java.util.*;
 //import MJ.SymTab.*;
 //import MJ.CodeGen.*;
 
+import MJ.SymTab.Obj;
+import MJ.SymTab.Struct;
+import MJ.SymTab.Tab;
+
 public class Parser {
 	private static final int  // token codes
 		none      = 0,
@@ -59,8 +63,9 @@ public class Parser {
 	private static int sym;			// always contains la.kind
 	public  static int errors;  // error counter
 	private static int errDist;	// no. of correctly recognized tokens since last error
+	private static Obj curMethod;
 
-	private static BitSet exprStart, statStart, statSeqFollow, declStart, declFollow;
+	private static BitSet firstExpr, firstStat, syncStat, syncDecl;
 
 	//------------------- auxiliary methods ----------------------
 	private static void scan() {
@@ -68,11 +73,11 @@ public class Parser {
 		la = Scanner.next();
 		sym = la.kind;
 		errDist++;
-		/*
-		System.out.print("line " + la.line + ", col " + la.col + ": " + name[sym]);
-		if (sym == ident) System.out.print(" (" + la.string + ")");
-		if (sym == number || sym == charCon) System.out.print(" (" + la.val + ")");
-		System.out.println();*/
+		
+		// System.out.print("line " + la.line + ", col " + la.col + ": " + name[sym]);
+		// if (sym == ident) System.out.print(" (" + la.val + ")");
+		// if (sym == number || sym == charCon) System.out.print(" (" + la.numVal + ")");
+		// System.out.println();
 	}
 
 	private static void check(int expected) {
@@ -94,54 +99,76 @@ public class Parser {
 	private static void Program() {
 		check(program_);
 		check(ident);
+		Tab.openScope();
 		while (true){
 			if (sym == final_){ ConstDecl(); 
 			} else if (sym == class_) { ClassDecl(); 
 			} else if (sym == ident) { VarDecl();
-			} else break;
+			} else if (sym == lbrace || sym == eof) break;
+			else {
+				error("invalid start of declaration");
+				do {
+					scan();
+				} while (!syncDecl.get(sym));
+				errDist = 0;
+			}
 		}
 
 		check(lbrace);
+		
 		while (sym == void_ || sym == ident) {
 			MethodDecl();	
 		}
 		check(rbrace);
+		Tab.dumpScope(Tab.curScope.locals);
+		Tab.closeScope();
+		
 		
 	}
 
 	//ConstDecl = "final" Type ident "=" (number | charConst) ";"
 	static private void ConstDecl(){
-		
 		check(final_);
-		Type();
+		Struct type = Type();
+		
 		check(ident);
+		Tab.insert(Obj.Con, t.val, type);
 		check(assign);
 		if (sym == number){
 			scan();
+			if (type != Tab.intType) { error("IntType expected"); }
+			Tab.insert(Obj.Con, t.val, type);
 		} else if (sym == charCon) {
 			scan();			
+			if (type != Tab.charType) { error("CharType expected"); }
 		} else error("number or char constant expected");
 		check(semicolon);
 	}
 
 	//Type = ident ["[" "]"].
-	static private void Type(){
+	static private Struct Type(){
 		check(ident);
+		Obj obj = Tab.find(t.val);
+		Struct type = obj.type;
 		if (sym == lbrack){
 			scan();
 			check(rbrack);
+			type = new Struct(Struct.Arr, type);
 		}
+		return type;
 	}
 
 	//FormPars = Type ident {"," Type ident}.
 	static private void FormPars() {
-		Type();
+		Struct type = Type();
 		check(ident);
+		Tab.insert(Obj.Var, t.val, type);
 		while (true) {
 			if (sym == comma){
 				scan();
-				Type();
+				type = Type();
 				check(ident);
+				Tab.insert(Obj.Var, t.val, type);
 			} else break;
 		}
 	}
@@ -149,7 +176,7 @@ public class Parser {
 	//ActPars = "(" [ Expr {"," Expr} ] ")".
 	static void ActPars(){
 		check(lpar);
-		if (sym == minus | sym == ident){
+		if (sym == minus | sym == ident | sym == number | sym == charCon | sym == new_ | sym == lpar){
 			Expr();
 			while (true){
 				if (sym == comma){
@@ -162,9 +189,10 @@ public class Parser {
 	}
 	//Factor = Designator [ActPars] | number | charConst | "new" ident ["[" Expr "]"] | "(" Expr ")".
 	private static void Factor(){
-		if (sym == ident){	Designator(); ActPars(); 
+		if (sym == ident){	Designator(); if (sym == lpar) {ActPars(); } 
 		} else if (sym == number | sym == charCon) { scan();
 		} else if (sym == new_) { 
+			scan();
 			check(ident);
 			if (sym == lbrack){
 				scan();
@@ -188,6 +216,7 @@ public class Parser {
 
 	//Term = Factor {Mulop Factor}.
 	private static void Term(){
+
 		Factor();
 		while (sym == times | sym == slash | sym == rem) { Mulop(); Factor(); }
 	}
@@ -200,7 +229,7 @@ public class Parser {
 	}
 	//Expr = ["-"] Term {Addop Term}.
 	private static void Expr(){
-		if (sym == minus){ scan(); } else error("Minus expected");
+		if (sym == minus){ scan(); } 
 		Term();
 		while (sym == plus | sym == minus) { Addop(); Term(); }
 	}
@@ -238,6 +267,12 @@ public class Parser {
 	// | "while" "(" Condition ")" Statement | "return" [Expr] ";" | "read" "(" Designator ")" ";" 
 	// | "print" "(" Expr ["," number] ")" ";" | Block | ";".
 	static private void Statement(){
+		if (!firstStat.get(sym)) {
+			error("invalid start of statement");
+			while (!syncStat.get(sym)) scan();
+			errDist = 0;
+			}
+
 		switch (sym){
 			case ident: 
 				Designator();
@@ -315,49 +350,58 @@ public class Parser {
 	//Block = "{" {Statement} "}".
 	static private void Block(){
 		check(lbrace);
-		System.out.println("block");
-		if (sym == ident | sym == if_ | sym == while_ | sym == return_ | sym == read_ |  
-		sym == print_ | sym == lbrace | sym == lbrace | sym == semicolon) {
+		while (sym != rbrace && sym != eof) {
 			Statement();
-		} else error("[long list here] 2 expected");
+		}
 		check(rbrace);
 	}
 	//ClassDecl = "class" ident "{" {VarDecl} "}".	
 	static private void ClassDecl(){
+		Struct type = new Struct(Struct.Class);
 		check(class_);
 		check(ident);
+
+		Tab.insert(Obj.Type, t.val, type);
 		check(lbrace);
 	
-		VarDecl();
+		Tab.openScope();
 
+		while (sym == ident) VarDecl();
 		check(rbrace);
-		
+
+		type.fields = Tab.curScope.locals;
+		type.nFields = Tab.curScope.nVars;
+		Tab.closeScope();
 	}
+
 	//VarDecl = Type ident {"," ident } ";".
-	static private void VarDecl(){
+	static private void VarDecl(){	
+		Struct type = Type();
 		check(ident);
-		if (sym == lbrack) {
-			scan();
-			check(rbrack);
-		} else { error("left bracket expected"); }
-		check(ident);
-		while (sym == comma) {
-			check(comma);
-			check(ident);
+		Tab.insert(Obj.Var, t.val, type);
+		while (true){
+			if (sym == comma){
+				scan();
+				check(ident);
+				Tab.insert(Obj.Var, t.val, type);
+			} else break;
 		}
 		check(semicolon);
-		scan();
 	}
 	//MethodDecl = (Type | "void") ident "(" [FormPars] ")" {VarDecl} Block.
 	static private void MethodDecl(){
+		Struct type = Tab.noType;
 		if (sym == void_){
 			scan();
-		} else { Type(); }
+		} else if (sym == ident) { type = Type(); 
+		} else { error("void or function type expected"); }	
+		
 		check(ident);
+		curMethod = Tab.insert(Obj.Meth, t.val, type);
+
+		Tab.openScope();
 		check(lpar);
-		if (sym == lpar){
-			scan();
-		} else FormPars();
+		if (sym == ident){ FormPars(); }
 		check(rpar);
 		
 		while (true){
@@ -365,34 +409,38 @@ public class Parser {
 			} else break;
 		}
 
+		curMethod.locals = Tab.curScope.locals;
+
 		Block();
+		Tab.closeScope();
 
 	}
 	
 	public static void parse() {
-		// initialize symbol sets
 		BitSet s;
-		s = new BitSet(64); exprStart = s;
+		// initialize first/sync sets
+		s = new BitSet(64); firstExpr = s;
 		s.set(ident); s.set(number); s.set(charCon); s.set(new_); s.set(lpar); s.set(minus);
 
-		s = new BitSet(64); statStart = s;
+		s = new BitSet(64); firstStat = s;
 		s.set(ident); s.set(if_); s.set(while_); s.set(read_);
 		s.set(return_); s.set(print_); s.set(lbrace); s.set(semicolon);
 
-		s = new BitSet(64); statSeqFollow = s;
-		s.set(rbrace); s.set(eof);
+		s = (BitSet)firstStat.clone(); syncStat = s;
+		s.set(rbrace); s.set(eof); s.clear(ident); 
 
-		s = new BitSet(64); declStart = s;
-		s.set(final_); s.set(ident); s.set(class_);
+		s = new BitSet(64); syncDecl = s;
+		s.set(final_); s.set(class_); s.set(lbrace); s.set(void_); s.set(semicolon); s.set(eof); //s.set(ident); 
 
-		s = new BitSet(64); declFollow = s;
-		s.set(lbrace); s.set(void_); s.set(eof);
 
 		// start parsing
+		Tab.init();
 		errors = 0; errDist = 3;
 		scan();
 		Program();
 		if (sym != eof) error("end of file found before end of program");
+		//if (Code.mainPc < 0) error("program contains no 'main' method");
+		//Tab.dumpScope(Tab.curScope.locals);
 	}
 
 }
