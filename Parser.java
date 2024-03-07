@@ -6,7 +6,7 @@ package MJ;
 import java.text.Normalizer.Form;
 import java.util.*;
 
-
+import MJ.CodeGen.Code;
 import MJ.SymTab.Obj;
 import MJ.SymTab.Struct;
 import MJ.SymTab.Tab;
@@ -131,15 +131,16 @@ public class Parser {
 		Struct type = Type();
 		
 		check(ident);
-		Tab.insert(Obj.Con, t.val, type);
+		Obj obj = Tab.insert(Obj.Con, t.val, type);
 		check(assign);
 		if (sym == number){
 			scan();
 			if (type != Tab.intType) { error("IntType expected"); }
-			Tab.insert(Obj.Con, t.val, type);
+			obj.val = t.numVal;
 		} else if (sym == charCon) {
 			scan();			
 			if (type != Tab.charType) { error("CharType expected"); }
+			obj.val = t.numVal;
 		} else error("number or char constant expected");
 		check(semicolon);
 	}
@@ -249,7 +250,6 @@ public class Parser {
 				check(rbrack);
 			} else break;
 		}
-
 	}
 	
 	//Relop = "==" | "!=" | ">" | ">=" | "<" | "<=".
@@ -391,8 +391,10 @@ public class Parser {
 		check(semicolon);
 	}
 	//MethodDecl = (Type | "void") ident "(" [FormPars] ")" {VarDecl} Block.
-	static private void MethodDecl(){
-		Struct type = Tab.noType;
+	static private void MethodDecl(Struct type, String name, int n){
+		if (type.isRefType()) error("methods may only return int or char");
+		type = Tab.noType;
+
 		if (sym == void_){
 			scan();
 		} else if (sym == ident) { type = Type(); 
@@ -402,6 +404,13 @@ public class Parser {
 		curMethod = Tab.insert(Obj.Meth, t.val, type);
 
 		Tab.openScope();
+
+		if (name.equals("main")){
+			Code.mainPc = Code.pc;
+			if (curMethod.type != Tab.noType) error("method main must be void");
+			if (curMethod.nPars != 0) error("main must not have parameters");
+		}
+
 		check(lpar);
 		if (sym == ident){ FormPars(); }
 		check(rpar);
@@ -412,8 +421,17 @@ public class Parser {
 		}
 
 		curMethod.locals = Tab.curScope.locals;
-
-		Block();
+		curMethod.adr = Code.pc;
+		Code.put(Code.enter);
+		Code.put(curMethod.nPars);
+		Code.put(Tab.curScope.nVars);
+		Block();	
+		if (curMethod.type == Tab.noType){
+			Code.put(Code.exit);
+			Code.put(Code.return_);
+		} else {//end of function reached without return statement
+			Code.put(Code.trap); Code.put(1);
+		}
 		Tab.closeScope();
 
 	}
