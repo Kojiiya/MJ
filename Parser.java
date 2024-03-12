@@ -391,9 +391,8 @@ public class Parser {
 		check(semicolon);
 	}
 	//MethodDecl = (Type | "void") ident "(" [FormPars] ")" {VarDecl} Block.
-	static private void MethodDecl(Struct type, String name, int n){
-		if (type.isRefType()) error("methods may only return int or char");
-		type = Tab.noType;
+	static private void MethodDecl(){
+		Struct type = Tab.noType;
 
 		if (sym == void_){
 			scan();
